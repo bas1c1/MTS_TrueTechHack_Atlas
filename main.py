@@ -88,8 +88,9 @@ class SendOrderRequest(BaseModel):
 
 class SaleOrder(BaseModel):
     SupplierID: str
-    QtyOrdered: int
-    ProductID: str
+    #QtyOrdered: int
+    #ProductID: str
+    recordId: str
 
     smtp_server: str
     smtp_port: int
@@ -110,10 +111,11 @@ class NotificationSentCheck(BaseModel):
 
 class CreatePurchase(BaseModel):
     recordId: str
-    POLineID: str
 
 VIEW_ID = "viwkEdlkjrBK0"
 
+GET_CLIENTS_URL = "https://true.tabs.sale/fusion/v1/datasheets/dstDVySpvvwyFZ2ZNp/records"
+GET_PURCHASE_ORDERS_URL = "https://true.tabs.sale/fusion/v1/datasheets/dstFwmrR9HEFNCfplx/records"
 GET_FINANCIAL_URL = "https://true.tabs.sale/fusion/v1/datasheets/dstCqgi4RraAS4nGoE/records"
 GET_PURCHASES_URL = "https://true.tabs.sale/fusion/v1/datasheets/dstwRUpF8TQ6XNv5tW/records"
 GET_PAYMENTS_URL = "https://true.tabs.sale/fusion/v1/datasheets/dst9N1LFbQ1MTXKJ6b/records"
@@ -180,10 +182,33 @@ async def create_purchase(
         second_response.raise_for_status()
         second_result = second_response.json()
 
+        th_response = requests.patch(
+            f"{GET_PURCHASE_ORDERS_URL}?viewId={VIEW_ID}&fieldKey=name",
+            headers={
+                "Authorization": authorization,
+                "Content-Type": "application/json"
+            },
+            json={
+                "records": [
+                    {
+                        "recordId": order.recordId,
+                        "fields": {
+                            "IsSent": True
+                        }
+                    }
+                ],
+                "fieldKey": "name"
+            }
+        )
+        
+        th_response.raise_for_status()
+        th_result = th_response.json()
+
         return {
             "status": "success",
             "req_result": get_sup_response,
-            "order_result": second_result
+            "order_result": second_result,
+            "th_result": th_result
         }
 
     except requests.exceptions.RequestException as e:
@@ -336,8 +361,27 @@ async def sale_order(
     authorization: str = Depends(validate_token)
 ):
     try:
+        get_pr_resp = requests.get(
+            f"{GET_SALESLINES_URL}?viewId={VIEW_ID}&fieldKey=name",
+            headers={
+                "Authorization": authorization
+            }
+        )
+        get_pr_resp.raise_for_status()
+        get_pr_response = get_pr_resp.json()
+
+        productId = ""
+        QtyOrdered = 0
+        for i in get_pr_response['data']['records']:
+            if i['fields']['SOID'][0] == order.recordId:
+                productId = i['fields']['ProductID'][0]
+                QtyOrdered = i['fields']['QtyOrdered']
+                break
+
+
+
         get_sup_resp = requests.get(
-            f"{GET_SUPPLIER_URL}?viewId={VIEW_ID}&fieldKey=name",
+            f"{GET_CLIENTS_URL}?viewId={VIEW_ID}&fieldKey=name",
             headers={
                 "Authorization": authorization
             }
@@ -363,12 +407,14 @@ async def sale_order(
         stockId = ""
         currentQty = 0
         for i in get_stock_response['data']['records']:
-            if i['fields']['ProductID'][0] == order.ProductID:
+            if i['fields']['ProductID'][0] == productId:
                 stockId = i['recordId']
                 currentQty = i['fields']['CurrentQty']
                 break
 
-        if currentQty < order.QtyOrdered:
+        print(f"ASDSASA\n{productId}")
+
+        if currentQty < QtyOrdered:
             send_email(
                 sender_email=order.mail_login,
                 receiver_email=email,
@@ -394,7 +440,7 @@ async def sale_order(
                     {
                         "recordId": stockId,
                         "fields": {
-                            "CurrentQty": currentQty - order.QtyOrdered
+                            "CurrentQty": currentQty - QtyOrdered
                         }
                     }
                 ],
