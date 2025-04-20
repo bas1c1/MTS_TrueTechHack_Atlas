@@ -16,20 +16,16 @@ class OrderRequest(BaseModel):
     SupplierID: str
     ProductID: str
     #POID: str
-    ReorderQty: int
-    UnitCost: float
+    #ReorderQty: int
+    #UnitCost: float
     recordId: str
 
-# First API endpoint configuration
+VIEW_ID = "viwkEdlkjrBK0"
+
+GET_PRODUCT_URL = "https://true.tabs.sale/fusion/v1/datasheets/dstQ5YNHvvFU7VJCSi/records"
 FIRST_API_URL = "https://true.tabs.sale/fusion/v1/datasheets/dstrCZuqHqu1Ztil9x/records"
-FIRST_VIEW_ID = "viwkEdlkjrBK0"
-
-# Second API endpoint configuration
 SECOND_API_URL = "https://true.tabs.sale/fusion/v1/datasheets/dstFwmrR9HEFNCfplx/records"
-SECOND_VIEW_ID = "viwkEdlkjrBK0"
-
 TH_API_URL     = "https://true.tabs.sale/fusion/v1/datasheets/dstVuLSABiS7rhxyCG/records"
-TH_VIEW_ID = "viwkEdlkjrBK0"
 
 def validate_token(authorization: str = Header(...)):
     if not authorization.startswith("Bearer "):
@@ -42,10 +38,26 @@ async def new_order(
     authorization: str = Depends(validate_token)
 ):
     try:
-        # Second API call - Supplier information
-        # Assuming similar structure but with different fields
+        get_resp = requests.get(
+            f"{GET_PRODUCT_URL}?viewId={VIEW_ID}&fieldKey=name",
+            headers={
+                "Authorization": authorization
+            }
+        )
+        get_resp.raise_for_status()
+        get_response = get_resp.json()
+
+        ReorderQty = 0
+        UnitCost = 0
+
+        for i in get_response['data']['records']:
+            if i['recordId'] == order.ProductID:
+                ReorderQty = i['fields']['ReorderQty']
+                UnitCost = i['fields']['UnitCost']
+                break
+
         second_response = requests.post(
-            f"{SECOND_API_URL}?viewId={SECOND_VIEW_ID}&fieldKey=name",
+            f"{SECOND_API_URL}?viewId={VIEW_ID}&fieldKey=name",
             headers={
                 "Authorization": authorization,
                 "Content-Type": "application/json"
@@ -54,7 +66,6 @@ async def new_order(
                 "records": [
                     {
                         "fields": {
-                            "POID": str(uuid.uuid4()),
                             "SupplierID": [
                                 order.SupplierID
                             ],
@@ -74,7 +85,7 @@ async def new_order(
 
         # First API call - Order details
         first_response = requests.post(
-            f"{FIRST_API_URL}?viewId={FIRST_VIEW_ID}&fieldKey=name",
+            f"{FIRST_API_URL}?viewId={VIEW_ID}&fieldKey=name",
             headers={
                 "Authorization": authorization,
                 "Content-Type": "application/json"
@@ -83,8 +94,8 @@ async def new_order(
                 "records": [
                     {
                         "fields": {
-                            "QtyOrdered": order.ReorderQty,
-                            "UnitCost": order.UnitCost,
+                            "QtyOrdered": ReorderQty,
+                            "UnitCost": UnitCost,
                             "POID": [link],
                             "ProductID": [order.ProductID]
                         }
@@ -100,7 +111,7 @@ async def new_order(
 
 
         th_response = requests.patch(
-            f"{TH_API_URL}?viewId={TH_VIEW_ID}&fieldKey=name",
+            f"{TH_API_URL}?viewId={VIEW_ID}&fieldKey=name",
             headers={
                 "Authorization": authorization,
                 "Content-Type": "application/json"
