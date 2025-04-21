@@ -112,7 +112,7 @@ class NotificationSentCheck(BaseModel):
 class CreatePurchase(BaseModel):
     recordId: str
 
-VIEW_ID = "viwkEdlkjrBK0"
+#VIEW_ID = "viwkEdlkjrBK0"
 
 GET_CLIENTS_URL = "https://true.tabs.sale/fusion/v1/datasheets/dstDVySpvvwyFZ2ZNp/records"
 GET_PURCHASE_ORDERS_URL = "https://true.tabs.sale/fusion/v1/datasheets/dstFwmrR9HEFNCfplx/records"
@@ -133,10 +133,14 @@ def validate_token(authorization: str = Header(...)):
         raise HTTPException(status_code=401, detail="Invalid authorization header format")
     return authorization
 
+def validate_viewId(VIEW_ID: str = Header(...)):
+    return VIEW_ID
+
 @app.post("/create_purchase")
 async def create_purchase(
     order: CreatePurchase,
-    authorization: str = Depends(validate_token)
+    authorization: str = Depends(validate_token),
+    VIEW_ID: str = Depends(validate_viewId)
 ):
     try:
         get_sup_resp = requests.get(
@@ -217,7 +221,8 @@ async def create_purchase(
 @app.post("/payment_notification")
 async def payment_notification(
     order: NotificationSentCheck,
-    authorization: str = Depends(validate_token)
+    authorization: str = Depends(validate_token),
+    VIEW_ID: str = Depends(validate_viewId)
 ):
     try:
         th_response = requests.patch(
@@ -252,7 +257,8 @@ async def payment_notification(
 @app.post("/log_transaction")
 async def log_transaction(
     order: LogTransaction,
-    authorization: str = Depends(validate_token)
+    authorization: str = Depends(validate_token),
+    VIEW_ID: str = Depends(validate_viewId)
 ):
     try:
         idType = "PaymentID"
@@ -296,7 +302,8 @@ async def log_transaction(
 @app.post("/create_payment")
 async def create_payment(
     order: CreatePayment,
-    authorization: str = Depends(validate_token)
+    authorization: str = Depends(validate_token),
+    VIEW_ID: str = Depends(validate_viewId)
 ):
     try:
         get_sup_resp = requests.get(
@@ -358,7 +365,8 @@ async def create_payment(
 @app.post("/sale_order")
 async def sale_order(
     order: SaleOrder,
-    authorization: str = Depends(validate_token)
+    authorization: str = Depends(validate_token),
+    VIEW_ID: str = Depends(validate_viewId)
 ):
     try:
         get_pr_resp = requests.get(
@@ -462,7 +470,8 @@ async def sale_order(
 @app.post("/accept_receipt")
 async def accept_receipt(
     order: AcceptReceiptRequest,
-    authorization: str = Depends(validate_token)
+    authorization: str = Depends(validate_token),
+    VIEW_ID: str = Depends(validate_viewId)
 ):
     try:
         get_sup_resp = requests.get(
@@ -541,7 +550,8 @@ async def accept_receipt(
 @app.post("/send_order")
 async def send_order(
     order: SendOrderRequest,
-    authorization: str = Depends(validate_token)
+    authorization: str = Depends(validate_token),
+    VIEW_ID: str = Depends(validate_viewId)
 ):
     try:
         get_sup_resp = requests.get(
@@ -616,7 +626,8 @@ async def send_order(
 @app.post("/new_order")
 async def new_order(
     order: OrderRequest,
-    authorization: str = Depends(validate_token)
+    authorization: str = Depends(validate_token),
+    VIEW_ID: str = Depends(validate_viewId)
 ):
     try:
         get_resp = requests.get(
